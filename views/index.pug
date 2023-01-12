@@ -1,0 +1,24 @@
+html
+  head
+    title Pokemon
+    link(rel="stylesheet" type="text/css" href="./styles.css")
+    link(rel='stylesheet', href='https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css')
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    script(src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js")
+  body
+    #fluidBox
+      .title
+        h2.is-size-1 POKEMON
+      .mainBox
+        form(method="GET" action="/")
+          .field
+            label.label Choose your favorite pokemon
+            .control
+              input.input(name="pokemon" type='text', placeholder='e.g Alex Smith')
+            .control
+              button.button.is-primary.btn Submit
+      .cardCover
+  script(src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js")
+  script(src="https://kit.fontawesome.com/8b8b86760e.js" crossorigin="anonymous")
+  script(type="text/javascript" src="axi.js")
+  

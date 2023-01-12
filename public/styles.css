@@ -1,0 +1,118 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+}
+
+body{
+  position: relative;
+}
+
+#fluidBox {
+  border: 3px solid red;
+  height: 100%;
+  width:100%;
+  position: relative;
+  background-image: url('./pokemonbg.jpg');
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.title {
+  text-align: center;
+}
+
+.title h2 {
+  color: black;
+  margin: auto;
+}
+
+.mainBox {
+  width: 60%;
+  margin: auto;
+}
+
+.control .btn {
+  margin: 6% auto auto 30%;
+}
+
+
+/* CARD SECTION */
+
+.cardCover {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0;
+  z-index: -1;
+}
+
+.cardCoverVisible {
+  opacity: 1;
+  z-index: 1;
+  transition: 1s 1s;
+}
+
+
+.cardContainer {
+  padding-top: 50px;
+  width: auto;
+  height: 100%;
+  margin: auto;
+  position: relative;
+  background-color: #e6e6e6;
+}
+
+
+.imgcontainer {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  margin: auto;
+  width: 80%;
+  height: 45%;
+  background-color: #ececec;
+  border-radius: 10px 10px 0 0;
+}
+
+.imgstyle {
+  height: 80%;
+  width: auto;
+  display: block;
+  margin: auto;
+}
+
+
+div > h2 {
+  font-size: 20px
+}
+
+.itemContainer {
+  margin: auto;
+  width: 80%;
+  min-height: 40%;
+  background-color: #ececec;
+  text-align: center;
+  font-size: 15px;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.closeBox {
+  position: absolute;
+  height:70px;
+  width: 70px;
+  top: 30;
+  left: 30;
+  right: auto;
+  bottom: auto;
+  border: 5px solid black;
+  text-align: center;
+}
+
+i {
+  margin-top: 12%;
+}
