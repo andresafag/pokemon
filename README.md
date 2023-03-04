@@ -1,5 +1,5 @@
 
-<h1>Pokesearch</h1>
+<h1 style="color:red;">Pokesearch</h1>
 
 This is a simple monolithic webpage where the basic information about pokemons is found easyly.
 
