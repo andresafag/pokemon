@@ -1,4 +1,4 @@
-const fs = require('fs')
+const fs = require('fs') 
 const express = require('express'),
       app = express(),
       bodyParser = require('body-parser'),
@@ -15,6 +15,6 @@ res.render("index")
 
 
 app.listen(10000, (err)=>{
-  if(err) console.log("No working")
+  if(err) console.error("No working")
   console.log("Listening on port 10000");
 })
