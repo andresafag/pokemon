@@ -2,7 +2,7 @@ name: CI & Deploy to ECS
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 # Minimum permissions for OIDC token issuance.
 # Job-level permissions below grant only what each job needs.
