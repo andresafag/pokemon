@@ -2,37 +2,252 @@
 
 # Pokesearch
 
-Pokesearch is a simple static website that allows users to easily find basic information about Pokémon.
+![Node.js](https://img.shields.io/badge/Node.js-24-339933?style=flat&logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4-000000?style=flat&logo=express&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?style=flat&logo=docker&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=flat&logo=terraform&logoColor=white)
+![AWS ECS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?style=flat&logo=amazon-aws&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=flat&logo=github-actions&logoColor=white)
+
+Pokesearch is a Node.js web app that lets users look up basic information about any Pokémon. It fetches live data from the [PokéAPI](https://pokeapi.co) and is deployed on AWS ECS Fargate via a fully automated CI/CD pipeline.
+
+**Live demo → [http://98.91.246.230:10000](http://98.91.246.230:10000)**
 
 ![Pokesearch Demo](https://user-images.githubusercontent.com/99931537/234955223-d7404cbf-889d-4cbd-b138-3b3d17d8e0aa.mov)
 
-## API
+---
 
-To fetch Pokémon information, Pokesearch utilizes the [PokéAPI](https://pokeapi.co), which provides comprehensive data about Pokémon species.
+## Table of Contents
 
-## HTTP Client
+- [Pokesearch](#pokesearch)
+  - [Table of Contents](#table-of-contents)
+  - [Tech Stack](#tech-stack)
+  - [Architecture](#architecture)
+  - [Terraform Infrastructure](#terraform-infrastructure)
+    - [Module dependency flow](#module-dependency-flow)
+    - [Terraform workflow diagram](#terraform-workflow-diagram)
+  - [CI/CD Pipeline](#cicd-pipeline)
+    - [Pipeline diagram](#pipeline-diagram)
+    - [GitHub secrets required](#github-secrets-required)
+  - [Why Fargate over ECS Express Mode](#why-fargate-over-ecs-express-mode)
+  - [Project Structure](#project-structure)
 
-Requests are made using a promise-based HTTP client, which is isomorphic and can run in both browser and Node.js environments.
+---
 
-## Installation and Setup
+## Tech Stack
 
-1. Clone the repository:
-  ```sh
-   git clone https://github.com/andresafag/pokemon.git
-   ```
-2. Install the dependencies
-  ```sh
-   npm install
-   ```
-3. Run it 
-  ```sh
-   node server.js
-   ```
-4. Pull up the browser and enter localhost:10000
-   
-https://user-images.githubusercontent.com/99931537/234955223-d7404cbf-889d-4cbd-b138-3b3d17d8e0aa.mov
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 24 |
+| Web framework | Express |
+| Templating | Pug |
+| HTTP client | Axios |
+| Container registry | Amazon ECR |
+| Compute | AWS ECS Fargate |
+| Infrastructure as Code | Terraform |
+| CI/CD | GitHub Actions + OIDC |
+| State backend | S3 + DynamoDB |
+
+---
+
+## Architecture
+
+The project uses a **hybrid IaC + CI/CD approach**: Terraform owns the infrastructure shape and GitHub Actions owns the application lifecycle. Neither ever conflicts with the other.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          AWS (us-east-1)                        │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  VPC  10.0.0.0/16                                        │   │
+│  │                                                          │   │
+│  │  ┌─────────────────┐     ┌─────────────────┐            │   │
+│  │  │ Public Subnet A │     │ Public Subnet B │            │   │
+│  │  │  10.0.1.0/24    │     │  10.0.2.0/24    │            │   │
+│  │  │                 │     │                 │            │   │
+│  │  │  ┌───────────┐  │     │                 │            │   │
+│  │  │  │  Fargate  │  │     │  (failover AZ)  │            │   │
+│  │  │  │   Task    │  │     │                 │            │   │
+│  │  │  │ :10000    │  │     │                 │            │   │
+│  │  │  └───────────┘  │     │                 │            │   │
+│  │  └────────┬────────┘     └─────────────────┘            │   │
+│  │           │                                              │   │
+│  │  ┌────────▼────────────────────────────────────────┐    │   │
+│  │  │  Security Group: ingress :10000, egress *        │    │   │
+│  │  └─────────────────────────────────────────────────┘    │   │
+│  │                          │                               │   │
+│  │              ┌───────────▼──────────┐                   │   │
+│  │              │  Internet Gateway    │                   │   │
+│  └──────────────┴──────────────────────┴───────────────────┘   │
+│                             │                                   │
+│  ┌──────────┐   ┌───────────▼──────┐   ┌─────────────────┐    │
+│  │   ECR    │   │   ECS Cluster    │   │   CloudWatch    │    │
+│  │ pokemon  │◄──│  pokemon-cluster │   │  /ecs/pokemon   │    │
+│  │  -app    │   │                  │   │  (30d retention)│    │
+│  └──────────┘   └──────────────────┘   └─────────────────┘    │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  IAM                                                     │   │
+│  │  pokemon-ecs-execution-role  (pull images, write logs)   │   │
+│  │  pokemon-ecs-task-role       (app-level AWS API calls)   │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Terraform Infrastructure
+
+All infrastructure is provisioned from `infrastructure/terraform/` using five purpose-built modules. Run once before any deployment.
+
+```
+infrastructure/terraform/
+├── main.tf           ← wiring layer: module calls + outputs only
+├── provider.tf       ← AWS provider + version constraints
+├── backend.tf        ← S3 remote state + DynamoDB lock
+└── modules/
+    ├── vpc/          ← VPC, subnets, IGW, route tables, security group
+    ├── ecr/          ← ECR repository
+    ├── iam/          ← ECS execution role + task role
+    ├── ecs/          ← ECS cluster, CloudWatch log group, bootstrap task definition
+    └── ecs_express_mode/ ← ECS Fargate service (lifecycle ignore_changes)
+```
+
+### Module dependency flow
+
+```
+vpc ──────────────────────────────────────────► ecs_express_mode
+ecr   (standalone)                                      ▲
+iam ──────────► ecs ──────────────────────────────────►─┘
+```
 
 
-In order to seek pokemon information I made use of a very useful API [pokemon api](https://pokeapi.co) which provided all the necessary information about pokemon species.
+### Terraform workflow diagram
 
-I made the requests using a promise-based HTTP Client for, in this case, the browser. It is an isomorphic module that can be running in browser/node.js side I highly recommend which prupose is to make requests and handle response in a very easy way [axios](https://axios-http.com/docs/intro).
+```
+Developer
+    │
+    ▼
+terraform init
+    │
+    ▼
+terraform apply
+    │
+    ├──► module.vpc            → VPC + subnets + IGW + SG
+    ├──► module.ecr            → ECR repository
+    ├──► module.iam            → execution role + task role
+    ├──► module.ecs            → cluster + log group + bootstrap task definition
+    └──► module.ecs_express_mode → ECS Fargate service
+                                   (lifecycle: ignore task_definition, desired_count)
+    │
+    ▼
+Infrastructure ready — CI/CD takes over from here
+```
+
+---
+
+## CI/CD Pipeline
+
+Every push to `master` triggers a two-job GitHub Actions workflow. No long-lived AWS credentials are stored — authentication uses **OIDC** (GitHub's identity token is exchanged for a short-lived AWS role).
+
+### Pipeline diagram
+
+```
+Push to master
+      │
+      ▼
+┌─────────────┐
+│   Job: Test │
+│─────────────│
+│ npm ci      │
+│ node --check│
+│ smoke test  │
+└──────┬──────┘
+       │ pass
+       ▼
+┌───────────────────────────────────────────┐
+│            Job: Build & Deploy            │
+│───────────────────────────────────────────│
+│                                           │
+│  1. Checkout code                         │
+│                                           │
+│  2. Configure AWS credentials (OIDC)      │
+│     GitHub token → assume IAM role        │
+│     (no AWS_ACCESS_KEY_ID stored)         │
+│                                           │
+│  3. Log in to Amazon ECR                  │
+│                                           │
+│  4. Build & push Docker image             │
+│     tag: <commit-sha>  +  :latest         │
+│     destination: ECR/pokemon-app          │
+│                                           │
+│  5. Render task definition                │
+│     .aws/task-definition.json             │
+│     IMAGE_URI_PLACEHOLDER → real ECR URI  │
+│                                           │
+│  6. Deploy to ECS                         │
+│     register new task definition revision │
+│     update pokemon-service                │
+│     wait for stability                    │
+│                                           │
+└───────────────────────────────────────────┘
+       │
+       ▼
+New container running in Fargate ✓
+```
+
+### GitHub secrets required
+
+| Secret | Description |
+|---|---|
+| `AWS_REGION` | e.g. `us-east-1` |
+| `GH_ACTIONS_ROLE_ARN` | ARN of the OIDC IAM role |
+| `ECR_REPOSITORY` | `pokemon-app` |
+| `ECS_CLUSTER` | `pokemon-cluster` |
+| `ECS_SERVICE` | `pokemon-service` |
+
+---
+
+## Why Fargate over ECS Express Mode
+
+ECS Express Mode is a simplified console wizard that abstracts away most configuration. It was intentionally **not used** here for several reasons:
+
+- **Not Terraform-manageable** — Express Mode is a console-only experience. There is no `aws_ecs_express_*` Terraform resource, which makes it impossible to version-control or reproduce the infrastructure.
+- **No lifecycle control** — the standard `aws_ecs_service` resource supports a `lifecycle { ignore_changes = [...] }` block, which is the critical mechanism that lets Terraform and GitHub Actions coexist without conflicting. Express Mode offers no equivalent.
+- **Less observable** — standard Fargate integrates directly with CloudWatch Container Insights, structured log groups, and IAM roles with explicit policies. Express Mode bundles these with less transparency.
+- **Production-grade requirements** — this project is built as a portfolio piece demonstrating real-world DevOps practices. Using the full Fargate service resource demonstrates understanding of the underlying primitives rather than relying on a wizard.
+
+---
+
+## Project Structure
+
+```
+pokemon/
+├── .aws/
+│   └── task-definition.json     ← ECS task definition template (CI/CD renders this)
+├── .github/
+│   └── workflows/
+│       └── ci-deploy.yml        ← GitHub Actions pipeline
+├── infrastructure/
+│   └── terraform/               ← All IaC lives here
+│       ├── main.tf
+│       ├── provider.tf
+│       ├── backend.tf
+│       └── modules/
+│           ├── vpc/
+│           ├── ecr/
+│           ├── iam/
+│           ├── ecs/
+│           └── ecs_express_mode/
+├── src/
+│   ├── public/
+│   │   ├── axi.js               ← Axios HTTP client (browser-side API calls)
+│   │   └── styles.css
+│   ├── views/
+│   │   └── index.pug            ← Pug template
+│   ├── server.js                ← Express server
+│   └── package.json
+├── Dockerfile
+├── .gitignore
+└── README.md
+```
