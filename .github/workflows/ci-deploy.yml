@@ -90,10 +90,16 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # ------------------------------------------------------------------
-      # Build, tag (commit SHA + latest), and push
+      # Build, tag (commit SHA + latest), and push ARM64 image
       # ------------------------------------------------------------------
-      - name: Build and push Docker image
+      - name: Build and push Docker image (ARM64)
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
@@ -101,15 +107,13 @@ jobs:
         run: |
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-          docker build -t "${IMAGE_URI}" .
+          docker buildx build \
+            --platform linux/arm64 \
+            --push \
+            -t "${IMAGE_URI}" \
+            -t "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest" \
+            .
 
-          # Also tag as :latest for human-readable convenience
-          docker tag "${IMAGE_URI}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
-
-          docker push "${IMAGE_URI}"
-          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
-
-          # Expose the full SHA-tagged URI for the render step
           echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
 
       # ------------------------------------------------------------------
