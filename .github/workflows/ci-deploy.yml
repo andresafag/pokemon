@@ -77,18 +77,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------------
-      # Authenticate to AWS via OIDC — no long-lived credentials in secrets.
-      # Prerequisites in AWS:
-      #   1. Create an OIDC identity provider for token.actions.githubusercontent.com
-      #   2. Create an IAM role (value stored in GH_ACTIONS_ROLE_ARN secret) with:
-      #        - Trust policy: federated OIDC principal, sub = repo:<org>/<repo>:ref:refs/heads/main
-      #        - Permissions: ecr:GetAuthorizationToken, ecr:BatchCheckLayerAvailability,
-      #          ecr:CompleteLayerUpload, ecr:InitiateLayerUpload, ecr:PutImage,
-      #          ecr:UploadLayerPart, ecs:RegisterTaskDefinition,
-      #          ecs:UpdateService, ecs:DescribeServices,
-      #          iam:PassRole (scoped to the ECS execution + task roles)
-      # ------------------------------------------------------------------
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:

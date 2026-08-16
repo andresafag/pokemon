@@ -25,6 +25,10 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [Architecture](#architecture)
   - [Terraform Infrastructure](#terraform-infrastructure)
     - [Module dependency flow](#module-dependency-flow)
+    - [FinOps 💸](#finops-)
+      - [Findings before optimization 🚨](#findings-before-optimization-)
+      - [Optimization actions ✅](#optimization-actions-)
+      - [Result after optimization 📉](#result-after-optimization-)
     - [Terraform workflow diagram](#terraform-workflow-diagram)
   - [CI/CD Pipeline](#cicd-pipeline)
     - [Pipeline diagram](#pipeline-diagram)
@@ -120,7 +124,48 @@ vpc ─────────────────────────�
 ecr   (standalone)                                      ▲
 iam ──────────► ecs ──────────────────────────────────►─┘
 ```
+### FinOps 💸
 
+To keep the workload cost-efficient without sacrificing reliability, I used Infracost as a FinOps validation layer to review the AWS footprint before and after optimization. This follows a proper cloud cost-governance workflow: identify waste, enforce policy-based guardrails, and right-size resources before they become a recurring operational expense.
+
+I ran:
+
+`infracost inspect --failing`
+
+This surfaced the most impactful issues in the Terraform-defined architecture, including:
+
+- ♻️ ECR lifecycle drift: the repository had no lifecycle policy, which meant stale container images were accumulating and increasing storage costs over time.
+- ⚙️ ECS cost optimization: the task definition was flagged by Infracost to use Graviton instances rather than x86-based compute for better cost-performance on Fargate.
+
+#### Findings before optimization 🚨
+
+The initial review showed a monthly cost estimate of about $9, driven primarily by unnecessary image retention and non-optimized compute architecture.
+
+The output flagged these recommendations clearly:
+
+- `ECR - consider using a lifecycle policy`
+- `ECS - consider using Graviton instances`
+
+At this stage, the infrastructure was technically functional, but it was not yet aligned with a lean, production-grade cost model.
+
+#### Optimization actions ✅
+
+I applied the following changes:
+
+- Added an ECR lifecycle policy to automatically remove stale images and reduce storage overhead.
+- Switched the ECS task definition from x86 to ARM64 / Graviton-compatible architecture to improve price-performance on AWS Fargate.
+
+#### Result after optimization 📉
+
+After these adjustments, the estimated monthly cost dropped from roughly $9 to effectively $0 for the current idle workload profile.
+
+![Previous cost](infrastructure/terraform/previous_cost.png)
+
+After applying the lifecycle policy and the Graviton migration, the cost profile was reduced significantly:
+
+![After cost](infrastructure/terraform/after_cost.png)
+
+This is a good example of practical FinOps in action: the stack remains operationally sound, but the cloud spend is reduced by eliminating waste, improving architecture efficiency, and aligning the workload with AWS’s more cost-effective compute model.
 
 ### Terraform workflow diagram
 

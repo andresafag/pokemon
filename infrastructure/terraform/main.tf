@@ -80,27 +80,7 @@ module "ecs" {
   tags               = local.tags
 }
 
-# ---------------------------------------------------------------------------
-# Module: ECS Express Mode (the Fargate service)
-# Provisions the ECS service. After the first apply, Terraform ignores
-# task_definition and desired_count so CI/CD can deploy freely.
-# ---------------------------------------------------------------------------
-module "ecs_express_mode" {
-  source = "./modules/ecs_express_mode"
 
-  name                           = var.app_name
-  cluster_id                     = module.ecs.cluster_id
-  task_definition_arn            = module.ecs.task_definition_arn
-  desired_count                  = var.desired_count
-  subnet_ids                     = module.vpc.public_subnet_ids
-  security_group_id              = module.vpc.ecs_security_group_id
-  execution_policy_attachment_id = module.iam.execution_policy_attachment_id
-  tags                           = local.tags
-}
-
-# ---------------------------------------------------------------------------
-# Outputs — copy these values into GitHub Actions secrets
-# ---------------------------------------------------------------------------
 
 output "ecr_repository_uri" {
   description = "ECR URI — used to build the Docker image tag in CI"
