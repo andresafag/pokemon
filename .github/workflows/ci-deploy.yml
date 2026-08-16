@@ -3,9 +3,16 @@ name: CI & Deploy to ECS
 on:
   push:
     branches: [master]
+    paths:
+      - "src/**"
+      - ".github/workflows/ci-deploy.yml"
+      - "infrastructure/terraform/**"
+      - ".aws/**"
 
-# Minimum permissions for OIDC token issuance.
-# Job-level permissions below grant only what each job needs.
+concurrency:
+  group: "ci-deploy"
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
