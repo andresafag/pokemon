@@ -30,6 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: src
 
       - name: Syntax check JS files
         run: |
@@ -41,6 +42,7 @@ jobs:
           nohup npm start &
           sleep 3
           curl --fail --silent --show-error http://localhost:10000/
+        working-directory: src
 
   # ---------------------------------------------------------------------------
   # Job 2 — Build, push, and deploy 
