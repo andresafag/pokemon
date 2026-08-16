@@ -1,0 +1,47 @@
+html
+  head
+    title Pokemon
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    link(rel="stylesheet", type="text/css", href="./styles.css")
+    link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css")
+    link(rel="preconnect", href="https://fonts.googleapis.com")
+    link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin)
+    link(href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap", rel="stylesheet")
+  body
+    .page-shell
+      header.topbar
+        .brand
+          .brand-mark
+          h1 Pokédex
+        form.pokemon-search
+          .search-wrap
+            input.pokemon-input(type="text", placeholder="Search a Pokémon...", aria-label="Search Pokémon")
+            button.search-btn(type="submit")
+              i.fa-solid.fa-magnifying-glass
+      main.content
+        section.hero-panel
+          .hero-copy
+            p.kicker Pokédex
+            h2 Discover the world of Pokémon
+            p.subtitle Browse a fresh batch of pocket monsters and tap any card for full details.
+          .hero-stat
+            span 9 per page
+            strong Balanced view
+
+        .pokemon-toolbar
+          button.arrow-btn.prev-btn(type="button", aria-label="Previous Pokémon page")
+            i.fa-solid.fa-arrow-left
+          .results-label
+            span Page
+            strong 1
+          button.arrow-btn.next-btn(type="button", aria-label="Next Pokémon page")
+            i.fa-solid.fa-arrow-right
+
+        section.pokemon-grid
+
+    .cardCover
+
+  script(src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js")
+  script(src="https://kit.fontawesome.com/8b8b86760e.js", crossorigin="anonymous")
+  script(type="text/javascript", src="axi.js")
+

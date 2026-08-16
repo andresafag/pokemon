@@ -1,0 +1,140 @@
+name: CI & Deploy to ECS
+
+on:
+  push:
+    branches: [main]
+
+# Minimum permissions for OIDC token issuance.
+# Job-level permissions below grant only what each job needs.
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1 — Test
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check JS files
+        run: |
+          node --check server.js
+          node --check public/axi.js
+
+      - name: Start server and smoke-test
+        run: |
+          nohup npm start &
+          sleep 3
+          curl --fail --silent --show-error http://localhost:10000/
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — Build, push, and deploy
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    needs: test
+
+    # Required for OIDC token issuance (id-token) and ECR login (packages: write
+    # is not needed here — id-token + contents:read is sufficient for AWS OIDC).
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
+      CONTAINER_NAME: pokemon
+      TASK_DEFINITION_PATH: .aws/task-definition.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # Authenticate to AWS via OIDC — no long-lived credentials in secrets.
+      # Prerequisites in AWS:
+      #   1. Create an OIDC identity provider for token.actions.githubusercontent.com
+      #   2. Create an IAM role (value stored in GH_ACTIONS_ROLE_ARN secret) with:
+      #        - Trust policy: federated OIDC principal, sub = repo:<org>/<repo>:ref:refs/heads/main
+      #        - Permissions: ecr:GetAuthorizationToken, ecr:BatchCheckLayerAvailability,
+      #          ecr:CompleteLayerUpload, ecr:InitiateLayerUpload, ecr:PutImage,
+      #          ecr:UploadLayerPart, ecs:RegisterTaskDefinition,
+      #          ecs:UpdateService, ecs:DescribeServices,
+      #          iam:PassRole (scoped to the ECS execution + task roles)
+      # ------------------------------------------------------------------
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.GH_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ------------------------------------------------------------------
+      # Log in to ECR
+      # ------------------------------------------------------------------
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ------------------------------------------------------------------
+      # Build, tag (commit SHA + latest), and push
+      # ------------------------------------------------------------------
+      - name: Build and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          docker build -t "${IMAGE_URI}" .
+
+          # Also tag as :latest for human-readable convenience
+          docker tag "${IMAGE_URI}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+          docker push "${IMAGE_URI}"
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+
+          # Expose the full SHA-tagged URI for the render step
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # Render the new image URI into the task-definition template.
+      # This replaces IMAGE_URI_PLACEHOLDER with the real SHA-tagged URI
+      # and produces a temporary rendered file used for registration.
+      # ------------------------------------------------------------------
+      - name: Render ECS task definition
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.TASK_DEFINITION_PATH }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image_uri }}
+
+      # ------------------------------------------------------------------
+      # Register the rendered task definition and update the ECS service.
+      # The service lifecycle block in Terraform (ignore_changes) ensures
+      # Terraform will never roll this back.
+      # ------------------------------------------------------------------
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
