@@ -41,7 +41,7 @@ jobs:
           curl --fail --silent --show-error http://localhost:10000/
 
   # ---------------------------------------------------------------------------
-  # Job 2 — Build, push, and deploy
+  # Job 2 — Build, push, and deploy 
   # ---------------------------------------------------------------------------
   deploy:
     name: Build & Deploy
