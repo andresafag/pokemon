@@ -8,6 +8,7 @@ on:
       - ".github/workflows/ci-deploy.yml"
       - "infrastructure/terraform/**"
       - ".aws/**"
+      - "Dockerfile.collector"
 
 concurrency:
   group: "ci-deploy"
@@ -68,6 +69,7 @@ jobs:
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      ECR_COLLECTOR_REPOSITORY: ${{ secrets.ECR_COLLECTOR_REPOSITORY }}
       ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
       ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
       CONTAINER_NAME: pokemon
@@ -117,17 +119,48 @@ jobs:
           echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
 
       # ------------------------------------------------------------------
-      # Render the new image URI into the task-definition template.
-      # This replaces IMAGE_URI_PLACEHOLDER with the real SHA-tagged URI
-      # and produces a temporary rendered file used for registration.
+      # Build, tag, and push the OTel Collector sidecar image (ARM64).
+      # Uses Dockerfile.collector which bakes open-config.yml into the
+      # official otel/opentelemetry-collector-contrib base image.
       # ------------------------------------------------------------------
-      - name: Render ECS task definition
-        id: render-task-def
+      - name: Build and push OTel Collector sidecar image (ARM64)
+        id: build-collector
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          COLLECTOR_URI="${ECR_REGISTRY}/${ECR_COLLECTOR_REPOSITORY}:${IMAGE_TAG}"
+
+          docker buildx build \
+            --platform linux/arm64 \
+            --push \
+            -f Dockerfile.collector \
+            -t "${COLLECTOR_URI}" \
+            -t "${ECR_REGISTRY}/${ECR_COLLECTOR_REPOSITORY}:latest" \
+            .
+
+          echo "collector_uri=${COLLECTOR_URI}" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # Render the new image URIs into the task-definition template.
+      # Step 1: replace IMAGE_URI_PLACEHOLDER for the app container.
+      # Step 2: replace COLLECTOR_IMAGE_URI_PLACEHOLDER for the sidecar.
+      # ------------------------------------------------------------------
+      - name: Render app container into task definition
+        id: render-app
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ${{ env.TASK_DEFINITION_PATH }}
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image_uri }}
+
+      - name: Render collector container into task definition
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-app.outputs.task-definition }}
+          container-name: otel-collector
+          image: ${{ steps.build-collector.outputs.collector_uri }}
 
       # ------------------------------------------------------------------
       # Register the rendered task definition and update the ECS service.
