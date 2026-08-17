@@ -1,11 +1,11 @@
 // telemetry.js
 const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
 const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-http');
-const { Resource } = require('@opentelemetry/resources');
+const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
 // 1. Identify the service
-const resource = new Resource({
+const resource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: 'web-app-service',
 });
 
