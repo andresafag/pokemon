@@ -1,6 +1,9 @@
 # Builds a custom OTel Collector image with the project config baked in.
 # This runs as a sidecar in the ECS task alongside the app container.
 # The -contrib variant is required for the prometheusremotewrite exporter.
-FROM otel/opentelemetry-collector-contrib:0.104.0
+FROM --platform=$BUILDPLATFORM otel/opentelemetry-collector-contrib:0.104.0
 
 COPY src/open-config.yml /etc/otelcol-contrib/config.yaml
+
+# Explicitly pass the config path so there is no ambiguity at startup.
+CMD ["--config", "/etc/otelcol-contrib/config.yaml"]
