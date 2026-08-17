@@ -11,9 +11,7 @@
 
 Pokesearch is a Node.js web app that lets users look up basic information about any Pokémon. It fetches live data from the [PokéAPI](https://pokeapi.co) and is deployed on AWS ECS Fargate via a fully automated CI/CD pipeline.
 
-**Live demo → [http://98.91.246.230:10000](http://98.91.246.230:10000)**
-
-![Pokesearch Demo](https://user-images.githubusercontent.com/99931537/234955223-d7404cbf-889d-4cbd-b138-3b3d17d8e0aa.mov)
+**Live demo → [Demo](http://98.85.228.128:10000)**
 
 ---
 
