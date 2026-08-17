@@ -84,7 +84,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # ------------------------------------------------------------------
-      # Log in to ECR
+      # Log in to ECR 
       # ------------------------------------------------------------------
       - name: Log in to Amazon ECR
         id: ecr-login
