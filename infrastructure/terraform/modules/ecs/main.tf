@@ -1,3 +1,5 @@
+
+
 # CloudWatch Log Group for container stdout/stderr
 resource "aws_cloudwatch_log_group" "this" {
   name              = "/ecs/${var.name}"
@@ -23,7 +25,7 @@ resource "aws_ecs_cluster" "this" {
 resource "aws_ecs_task_definition" "this" {
   family                   = var.name
   network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE_SPOT"]
+  requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
   execution_role_arn       = var.execution_role_arn
@@ -31,7 +33,7 @@ resource "aws_ecs_task_definition" "this" {
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture       = "ARM64"
+    cpu_architecture        = "ARM64"
   }
 
   container_definitions = jsonencode([
@@ -60,4 +62,21 @@ resource "aws_ecs_task_definition" "this" {
   ])
 
   tags = var.tags
+}
+
+
+resource "aws_ecs_service" "this" {
+  name            = var.name
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.this.arn
+  desired_count   = 1
+
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 100
+  }
+  network_configuration {
+    subnets         = var.subnet_ids
+    security_groups = var.security_group_ids
+  }
 }

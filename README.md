@@ -157,7 +157,7 @@ I applied the following changes:
 
 #### Result after optimization 📉
 
-After these adjustments, the estimated monthly cost dropped from roughly $9 to effectively $0 for the current idle workload profile.
+After these adjustments, the estimated monthly cost dropped from roughly $9 to effectively $3 for the current idle workload profile.
 
 ![Previous cost](infrastructure/terraform/previous_cost.png)
 
