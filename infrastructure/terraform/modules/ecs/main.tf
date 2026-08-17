@@ -23,6 +23,7 @@ resource "aws_ecs_cluster" "this" {
 # The lifecycle block on the ECS service (ecs_express_mode module) ensures
 # Terraform never rolls back the revision that CI/CD deployed.
 resource "aws_ecs_task_definition" "this" {
+  depends_on = [aws_cloudwatch_log_group.this]
   family                   = var.name
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -74,6 +75,12 @@ resource "aws_ecs_service" "this" {
   capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
     weight            = 100
+  }
+
+  network_configuration {
+    subnets         = var.subnet_ids
+    security_groups = var.security_group_ids
+    assign_public_ip = true
   }
 
 }
