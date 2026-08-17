@@ -16,10 +16,17 @@ exporters:
     endpoint: "http://3.83.136.67:9090/api/v1/write"
     tls:
       insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Debug exporter — logs every metric to stdout so CloudWatch shows it.
+  # Remove this once metrics are confirmed in Prometheus.
+  debug:
+    verbosity: detailed
 
 service:
   pipelines:
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [prometheusremotewrite]
+      exporters: [prometheusremotewrite, debug]
