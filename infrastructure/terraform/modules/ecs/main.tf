@@ -75,8 +75,5 @@ resource "aws_ecs_service" "this" {
     capacity_provider = "FARGATE_SPOT"
     weight            = 100
   }
-  network_configuration {
-    subnets         = var.subnet_ids
-    security_groups = var.security_group_ids
-  }
+
 }
