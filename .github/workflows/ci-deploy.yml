@@ -61,7 +61,6 @@ jobs:
     needs: test
 
     # Required for OIDC token issuance (id-token) and ECR login (packages: write
-    # is not needed here — id-token + contents:read is sufficient for AWS OIDC).
     permissions:
       contents: read
       id-token: write
@@ -88,20 +87,32 @@ jobs:
       # ------------------------------------------------------------------
       # Log in to ECR 
       # ------------------------------------------------------------------
+      - name: src folder cache
+        id: src-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/**
+          key: ${{ runner.os }}-src-${{ hashFiles('src/**') }}
+      
       - name: Log in to Amazon ECR
+        if: steps.src-cache.outputs.cache-hit != 'true'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set up QEMU
+        if: steps.src-cache.outputs.cache-hit != 'true'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        if: steps.src-cache.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
 
       # ------------------------------------------------------------------
       # Build, tag (commit SHA + latest), and push ARM64 image
       # ------------------------------------------------------------------
       - name: Build and push Docker image (ARM64)
+        if: steps.src-cache.outputs.cache-hit != 'true'
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
@@ -125,6 +136,7 @@ jobs:
       # ------------------------------------------------------------------
       - name: Build and push OTel Collector sidecar image (ARM64)
         id: build-collector
+        if: steps.src-cache.outputs.cache-hit != 'true'
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
@@ -143,10 +155,9 @@ jobs:
 
       # ------------------------------------------------------------------
       # Render the new image URIs into the task-definition template.
-      # Step 1: replace IMAGE_URI_PLACEHOLDER for the app container.
-      # Step 2: replace COLLECTOR_IMAGE_URI_PLACEHOLDER for the sidecar.
       # ------------------------------------------------------------------
       - name: Render app container into task definition
+        if: steps.src-cache.outputs.cache-hit != 'true'
         id: render-app
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -155,6 +166,7 @@ jobs:
           image: ${{ steps.build-image.outputs.image_uri }}
 
       - name: Render collector container into task definition
+        if: steps.src-cache.outputs.cache-hit != 'true'
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -164,13 +176,50 @@ jobs:
 
       # ------------------------------------------------------------------
       # Register the rendered task definition and update the ECS service.
-      # The service lifecycle block in Terraform (ignore_changes) ensures
-      # Terraform will never roll this back.
       # ------------------------------------------------------------------
       - name: Deploy to Amazon ECS
+        if: steps.src-cache.outputs.cache-hit != 'true'
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+        
+      - name: Get ECS Task Public IP
+        id: get-ip
+        if: steps.src-cache.outputs.cache-hit != 'true'
+        run: |
+          # 1. Get the ARN of the running task in the service
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_SERVICE }} \
+            --desired-status RUNNING \
+            --query "taskArns[0]" --output text)
+
+          # 2. Get the Elastic Network Interface (ENI) ID attached to the task
+          ENI_ID=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
+            --output text)
+
+          # 3. Get the Public IP assigned to that ENI
+          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
+            --network-interface-ids $ENI_ID \
+            --query "NetworkInterfaces[0].Association.PublicIp" \
+            --output text)
+
+          echo "Task Public IP: $PUBLIC_IP"
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+      
+      - name: update public IP of the ECS service
+        if: steps.src-cache.outputs.cache-hit != 'true'
+        run: |
+          PUBLIC_IP=${{ steps.get-ip.outputs.public_ip }}
+          sed -i -E "s/(http:\/\/)(([0-9]{1,3}\.){3}[0-9]{1,3})(:10000)/\1${PUBLIC_IP}\4/g" README.md
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add README.md
+          git commit --no-verify -m "docs 📖: update public IP of the ECS service [skip ci]"
+          git push
