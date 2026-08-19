@@ -12,7 +12,7 @@
 Pokesearch is a Node.js web app that lets users look up basic information about any Pokémon. It fetches live data from the [PokéAPI](https://pokeapi.co) and is deployed on AWS ECS Fargate via a fully automated CI/CD pipeline.
 
 < --- IP start --- >
-**Live demo → [Demo](http://98.85.228.128:10000)**
+**Experience the application live: → [Demo](http://98.85.228.128:10000)**
 < --- IP end --- >
 
 ---
@@ -24,17 +24,19 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [Tech Stack](#tech-stack)
   - [Architecture](#architecture)
   - [Terraform Infrastructure](#terraform-infrastructure)
-    - [Module dependency flow](#module-dependency-flow)
     - [FinOps 💸](#finops-)
       - [Findings before optimization 🚨](#findings-before-optimization-)
       - [Optimization actions ✅](#optimization-actions-)
       - [Result after optimization 📉](#result-after-optimization-)
     - [Terraform workflow diagram](#terraform-workflow-diagram)
   - [CI/CD Pipeline](#cicd-pipeline)
-    - [Pipeline diagram](#pipeline-diagram)
+    - [Pipeline Diagram](#pipeline-diagram)
     - [GitHub secrets required](#github-secrets-required)
   - [Why Fargate over ECS Express Mode](#why-fargate-over-ecs-express-mode)
   - [Project Structure](#project-structure)
+  - [Usage](#usage)
+  - [License](#license)
+  - [Footer](#footer)
 
 ---
 
@@ -106,7 +108,7 @@ All infrastructure is provisioned from `infrastructure/terraform/` using five pu
 
 ```
 infrastructure/terraform/
-├── main.tf           ← wiring layer: module calls + outputs only
+├── main.tf           ← Wiring layer: module calls + outputs only
 ├── provider.tf       ← AWS provider + version constraints
 ├── backend.tf        ← S3 remote state + DynamoDB lock
 └── modules/
@@ -117,13 +119,6 @@ infrastructure/terraform/
     └── ecs_express_mode/ ← ECS Fargate service (lifecycle ignore_changes)
 ```
 
-### Module dependency flow
-
-```
-vpc ──────────────────────────────────────────► ecs_express_mode
-ecr   (standalone)                                      ▲
-iam ──────────► ecs ──────────────────────────────────►─┘
-```
 ### FinOps 💸
 
 To keep the workload cost-efficient without sacrificing reliability, I used Infracost as a FinOps validation layer to review the AWS footprint before and after optimization. This follows a proper cloud cost-governance workflow: identify waste, enforce policy-based guardrails, and right-size resources before they become a recurring operational expense.
@@ -193,51 +188,51 @@ Infrastructure ready — CI/CD takes over from here
 
 ## CI/CD Pipeline
 
-Every push to `master` triggers a two-job GitHub Actions workflow. No long-lived AWS credentials are stored — authentication uses **OIDC** (GitHub's identity token is exchanged for a short-lived AWS role).
+A GitHub Actions workflow automates the build, test, and deployment process for every push to the `master` branch. It utilizes OIDC for secure AWS authentication, eliminating the need for long-lived credentials.
 
-### Pipeline diagram
+### Pipeline Diagram 
 
 ```
 Push to master
-      │
-      ▼
+      │
+      ▼
 ┌─────────────┐
-│   Job: Test │
+│   Job: Test │
 │─────────────│
-│ npm ci      │
+│ npm ci      │
 │ node --check│
-│ smoke test  │
+│ smoke test  │
 └──────┬──────┘
-       │ pass
-       ▼
+       │ pass
+       ▼
 ┌───────────────────────────────────────────┐
-│            Job: Build & Deploy            │
+│            Job: Build & Deploy            │
 │───────────────────────────────────────────│
-│                                           │
-│  1. Checkout code                         │
-│                                           │
-│  2. Configure AWS credentials (OIDC)      │
-│     GitHub token → assume IAM role        │
-│     (no AWS_ACCESS_KEY_ID stored)         │
-│                                           │
-│  3. Log in to Amazon ECR                  │
-│                                           │
-│  4. Build & push Docker image             │
-│     tag: <commit-sha>  +  :latest         │
-│     destination: ECR/pokemon-app          │
-│                                           │
-│  5. Render task definition                │
-│     .aws/task-definition.json             │
-│     IMAGE_URI_PLACEHOLDER → real ECR URI  │
-│                                           │
-│  6. Deploy to ECS                         │
-│     register new task definition revision │
-│     update pokemon-service                │
-│     wait for stability                    │
-│                                           │
+│                                           │
+│  1. Checkout code                         │
+│                                           │
+│  2. Configure AWS credentials (OIDC)      │
+│     GitHub token → assume IAM role        │
+│     (no AWS_ACCESS_KEY_ID stored)         │
+│                                           │
+│  3. Log in to Amazon ECR                  │
+│                                           │
+│  4. Build & push Docker image             │
+│     tag: <commit-sha>  +  :latest         │
+│     destination: ECR/pokemon-app          │
+│                                           │
+│  5. Render task definition                │
+│     .aws/task-definition.json             │
+│     IMAGE_URI_PLACEHOLDER → real ECR URI  │
+│                                           │
+│  6. Deploy to ECS                         │
+│     register new task definition revision │
+│     update pokemon-service                │
+│     wait for stability                    │
+│                                           │
 └───────────────────────────────────────────┘
-       │
-       ▼
+       │
+       ▼
 New container running in Fargate ✓
 ```
 
@@ -296,3 +291,25 @@ pokemon/
 ├── .gitignore
 └── README.md
 ```
+
+## Usage 
+
+Once the application is running, you can access it via your web browser.
+
+1.  **Open your browser** and navigate to `http://localhost:10000`.
+2.  **Search for a Pokémon:** Enter a Pokémon's name in the search bar and press Enter.
+3.  **View Details:** A modal will display detailed information about the Pokémon.
+4.  **Navigate Pages:** Use the pagination buttons to browse through different pages of Pokémon.
+
+---
+
+## License 
+
+This project is not currently under a specified license. Please refer to the repository for details.
+
+---
+
+## Footer
+
+© 2023 [andresafag/pokemon](https://github.com/andresafag/pokemon) | Developed by [andresafag](https://github.com/andresafag)
+
