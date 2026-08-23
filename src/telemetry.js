@@ -5,7 +5,7 @@ const { ATTR_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
 // 1. Identify the service
 const resource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: 'web-app-service',
+  [ATTR_SERVICE_NAME]: 'pokemon-app-service',
 });
 
 // 2. Initialise the metric exporter
