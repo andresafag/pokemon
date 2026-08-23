@@ -1,4 +1,3 @@
-// telemetry.js
 const { MeterProvider, PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
 const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-http');
 const { resourceFromAttributes } = require('@opentelemetry/resources');
@@ -9,9 +8,7 @@ const resource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: 'web-app-service',
 });
 
-// 2. Configure the OTLP/HTTP exporter pointing to the OTel Collector sidecar.
-//    Inside ECS awsvpc networking, localhost reaches the sidecar container.
-//    Override OTEL_EXPORTER_OTLP_ENDPOINT if you ever need a different address.
+// 2. Initialise the metric exporter
 const collectorEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
 
 const metricExporter = new OTLPMetricExporter({

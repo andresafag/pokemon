@@ -2,7 +2,6 @@ const fs = require('fs')
 const express = require('express'),
       app = express(),
       bodyParser = require('body-parser'),
-      axios = require('axios'),
       { httpRequestsTotal, httpRequestDuration } = require('./telemetry');
 
 const PORT = process.env.PORT || 10000;
@@ -11,6 +10,7 @@ app.use(bodyParser.urlencoded({ extended: true}));
 app.use(bodyParser.json());
 app.set('view engine','pug')
 app.use(express.static('public'))
+app.set("view cache", true)
 
 app.use((req, res, next) => {
   const startTime = Date.now();
