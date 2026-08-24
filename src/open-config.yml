@@ -13,7 +13,7 @@ processors:
 
 exporters:
   otlphttp:
-    endpoint: "http://3.83.136.67:9090/api/v1/otlp"
+    endpoint: "http://${env:OTEL_EXPORTER_IP}:9090/api/v1/otlp"
     tls:
       insecure: true
 

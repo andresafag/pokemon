@@ -1,5 +1,7 @@
 FROM --platform=$TARGETPLATFORM otel/opentelemetry-collector-contrib:0.104.0
 
 COPY src/open-config.yml /etc/otelcol-contrib/config.yaml
+ARG EXPORTER_IP
+ENV OTEL_EXPORTER_IP=${EXPORTER_IP}
 
 CMD ["--config", "/etc/otelcol-contrib/config.yaml"]

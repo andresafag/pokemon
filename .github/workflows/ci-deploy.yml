@@ -128,6 +128,8 @@ jobs:
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_COLLECTOR_REPOSITORY }}:${{ github.sha }}
             ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_COLLECTOR_REPOSITORY }}:latest
+          build-args: |
+            EXPORTER_IP=${{ secrets.OTEL_EXPORTER_IP }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
