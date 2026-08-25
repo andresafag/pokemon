@@ -10,6 +10,12 @@ processors:
   batch:
     timeout: 1s
     send_batch_size: 1024
+  transform:
+    error_mode: ignore
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["service"], resource.attributes["service.name"])
 
 exporters:
   otlphttp:
@@ -24,5 +30,5 @@ service:
   pipelines:
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch, transform]
       exporters: [otlphttp, debug]
