@@ -162,16 +162,3 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
         
-      - name: Update README with Public IP 
-        run: |
-          TASK_ARN=$(aws ecs list-tasks --cluster ${{ env.ECS_CLUSTER }} --service-name ${{ env.ECS_SERVICE }} --desired-status RUNNING --query "taskArns[0]" --output text)
-          ENI_ID=$(aws ecs describe-tasks --cluster ${{ env.ECS_CLUSTER }} --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
-          PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query "NetworkInterfaces[0].Association.PublicIp" --output text)
-
-          if [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "None" ]; then
-            sed -i -E "s/(http:\/\/)(([0-9]{1,3}\.){3}[0-9]{1,3})(:10000)/\1${PUBLIC_IP}\4/g" README.md
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git config --global user.name "github-actions[bot]"
-            git commit -am "docs 📖: update public IP [skip ci]" || echo "No changes to commit"
-            git push
-          fi
