@@ -1,4 +1,4 @@
-![pikachu-removebg-preview](https://github.com/user-attachments/assets/ef7dddd4-0783-4258-8a4b-8a17798f379f)
+![Logo](logo.jpeg)
 
 # Pokesearch
 
