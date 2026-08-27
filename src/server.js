@@ -2,7 +2,7 @@ const fs = require('fs')
 const express = require('express'),
       app = express(),
       bodyParser = require('body-parser'),
-      { httpRequestsTotal, httpRequestDuration } = require('./telemetry');
+      { httpRequestsTotal, httpRequestDuration, activeRequests } = require('./telemetry');
 
 const PORT = process.env.PORT || 10000;
 
