@@ -39,4 +39,9 @@ const httpRequestDuration = meter.createHistogram('http_request_duration_seconds
   unit: 's',
 });
 
-module.exports = { meter, httpRequestsTotal, httpRequestDuration };
+const activeRequests = meter.createUpDownCounter('http_active_requests', {
+  description: 'Number of currently active HTTP requests',
+  unit: '1',
+});
+
+module.exports = { meter, httpRequestsTotal, httpRequestDuration, activeRequests };

@@ -14,7 +14,7 @@ app.set("view cache", true)
 
 app.use((req, res, next) => {
   const startTime = Date.now();
-
+  activeRequests.add(1, { route: req.path });
   res.on('finish', () => {
     const durationSec = (Date.now() - startTime) / 1000;
     const route = req.route ? req.route.path : req.path;
@@ -29,6 +29,8 @@ app.use((req, res, next) => {
       method: req.method,
       route: route,
     });
+
+    activeRequests.add(-1, { route: req.path });
   });
 
   next();
