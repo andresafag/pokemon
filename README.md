@@ -24,6 +24,7 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [Tech Stack](#tech-stack)
   - [Architecture](#architecture)
   - [Terraform Infrastructure](#terraform-infrastructure)
+  - [Static Asset Offloading \& CDN Edge Acceleration](#static-asset-offloading--cdn-edge-acceleration)
     - [FinOps 💸](#finops-)
       - [Findings before optimization 🚨](#findings-before-optimization-)
       - [Optimization actions ✅](#optimization-actions-)
@@ -48,6 +49,8 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
 | Web framework | Express |
 | Templating | Pug |
 | HTTP client | Axios |
+| Static Asset Storage | Amazon S3 |
+| Content Delivery Network | Amazon CloudFront (OAC Secured) |
 | Container registry | Amazon ECR |
 | Compute | AWS ECS Fargate |
 | Infrastructure as Code | Terraform |
@@ -60,45 +63,53 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
 
 The project uses a **hybrid IaC + CI/CD approach**: Terraform owns the infrastructure shape and GitHub Actions owns the application lifecycle. Neither ever conflicts with the other.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                          AWS (us-east-1)                        │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  VPC  10.0.0.0/16                                        │   │
-│  │                                                          │   │
-│  │  ┌─────────────────┐     ┌─────────────────┐            │   │
-│  │  │ Public Subnet A │     │ Public Subnet B │            │   │
-│  │  │  10.0.1.0/24    │     │  10.0.2.0/24    │            │   │
-│  │  │                 │     │                 │            │   │
-│  │  │  ┌───────────┐  │     │                 │            │   │
-│  │  │  │  Fargate  │  │     │  (failover AZ)  │            │   │
-│  │  │  │   Task    │  │     │                 │            │   │
-│  │  │  │ :10000    │  │     │                 │            │   │
-│  │  │  └───────────┘  │     │                 │            │   │
-│  │  └────────┬────────┘     └─────────────────┘            │   │
-│  │           │                                              │   │
-│  │  ┌────────▼────────────────────────────────────────┐    │   │
-│  │  │  Security Group: ingress :10000, egress *        │    │   │
-│  │  └─────────────────────────────────────────────────┘    │   │
-│  │                          │                               │   │
-│  │              ┌───────────▼──────────┐                   │   │
-│  │              │  Internet Gateway    │                   │   │
-│  └──────────────┴──────────────────────┴───────────────────┘   │
-│                             │                                   │
-│  ┌──────────┐   ┌───────────▼──────┐   ┌─────────────────┐    │
-│  │   ECR    │   │   ECS Cluster    │   │   CloudWatch    │    │
-│  │ pokemon  │◄──│  pokemon-cluster │   │  /ecs/pokemon   │    │
-│  │  -app    │   │                  │   │  (30d retention)│    │
-│  └──────────┘   └──────────────────┘   └─────────────────┘    │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  IAM                                                     │   │
-│  │  pokemon-ecs-execution-role  (pull images, write logs)   │   │
-│  │  pokemon-ecs-task-role       (app-level AWS API calls)   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                     AWS (us-east-1)                                    │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────┐     ┌─────────────────────────────┐  │
+│  │ Global Content Delivery                      │     │ Private Object Storage      │  │
+│  │                                              │     │                             │  │
+│  │   ┌───────────────────────────────────────┐  │ OAC │  ┌───────────────────────┐  │  │
+│  │   │ CloudFront Global Edge Distribution   │──┼─────┼─►│ S3 Static Asset Bucket│  │  │
+│  │   │ (d3fwm73dej81m3.cloudfront.net)       │  │Auth │  │ (pokemon-files-ecs)   │  │  │
+│  │   └───────────────────────────────────────┘  │     │  └───────────────────────┘  │  │
+│  └──────────────────────┬───────────────────────┘     └─────────────────────────────┘  │
+│                         │ (Static CSS / JS)                                            │
+│                         ▼                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │  VPC  10.0.0.0/16                                                                │  │
+│  │                                                                                  │  │
+│  │  ┌───────────────────────────┐     ┌───────────────────┐                         │  │
+│  │  │ Public Subnet A           │     │ Public Subnet B   │                         │  │
+│  │  │  10.0.1.0/24              │     │  10.0.2.0/24      │                         │  │
+│  │  │                           │     │                   │                         │  │
+│  │  │  ┌─────────────────────┐  │     │                   │                         │  │
+│  │  │  │ Fargate Container   │  │     │  (failover AZ)    │                         │  │
+│  │  │  │ Task :10000         │  │     │                   │                         │  │
+│  │  │  └─────────────────────┘  │     │                   │                         │  │
+│  │  └─────────────┬─────────────┘     └───────────────────┘                         │  │
+│  │                │                                                                 │  │
+│  │  ┌─────────────▼──────────────────────────────────────────────────────────────┐  │  │
+│  │  │  Security Group: ingress :10000, egress *                                  │  │  │
+│  │  └─────────────────────────────────────┬──────────────────────────────────────┘  │  │
+│  │                                        │                                         │  │
+│  │                           ┌────────────▼─────────┐                               │  │
+│  │                           │  Internet Gateway    │                               │  │
+│  └───────────────────────────┴────────────┬─────────┴───────────────────────────────┘  │
+│                                           │                                            │
+│  ┌──────────┐              ┌──────────────▼───────┐           ┌─────────────────┐      │
+│  │   ECR    │              │   ECS Cluster        │           │   CloudWatch    │      │
+│  │ pokemon  │◄─────────────│  pokemon-cluster     │           │  /ecs/pokemon   │      │
+│  │  -app    │              │                      │           │  (30d retention)│      │
+│  └──────────┘              └──────────────────────┘           └─────────────────┘      │
+│                                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
+│  │  IAM & Security                                                                  │  │
+│  │  pokemon-ecs-execution-role  (pull images, write logs)                           │  │
+│  │  pokemon-ecs-task-role       (app-level AWS API calls)                           │  │
+│  │  S3 Bucket Policy            (allow read only via CloudFront OAC Principal)      │  │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 
 ---
 
@@ -118,6 +129,18 @@ infrastructure/terraform/
     ├── ecs/          ← ECS cluster, CloudWatch log group, bootstrap task definition
     └── ecs_express_mode/ ← ECS Fargate service (lifecycle ignore_changes)
 ```
+
+---
+
+## Static Asset Offloading & CDN Edge Acceleration
+
+To optimize network latency and reduce load on the Node.js ECS tasks, static assets (such as CSS stylesheets) are offloaded to an Amazon S3 bucket (`pokemon-files-ecs`) served through Amazon CloudFront.
+
+* **Origin Access Control (OAC):** Direct public access to the S3 origin is disabled. Public retrieval is exclusively authorized via CloudFront using an IAM S3 Bucket Policy configured with a `cloudfront.amazonaws.com` Service Principal condition tied to the CloudFront Distribution ARN.
+* **Template Linking:** Pug templates load static dependencies directly from the CloudFront CDN endpoint (`https://d3fwm73dej81m3.cloudfront.net/styles.css`).
+* **CI/CD Pipeline Integration:** Static files inside `src/public/` are synchronized directly to the S3 bucket during deployment via single-object AWS CLI sync tasks.
+
+---
 
 ### FinOps 💸
 
@@ -296,7 +319,7 @@ pokemon/
 
 Once the application is running, you can access it via your web browser.
 
-1.  **Open your browser** and navigate to `http://localhost:10000`.
+1.  **Open your browser** and navigate to [Demo](http://44.220.130.33:10000)
 2.  **Search for a Pokémon:** Enter a Pokémon's name in the search bar and press Enter.
 3.  **View Details:** A modal will display detailed information about the Pokémon.
 4.  **Navigate Pages:** Use the pagination buttons to browse through different pages of Pokémon.
