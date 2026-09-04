@@ -9,6 +9,8 @@ on:
       - "infrastructure/terraform/**"
       - ".aws/**"
       - "Dockerfile.collector"
+  repository_dispatch:
+    types: [agent_redeploy_trigger]
 
 concurrency:
   group: "ci-deploy"
@@ -29,6 +31,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Use Node.js 24
+        if: ${{ github.event_name == 'push' }}
         uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -37,15 +40,18 @@ jobs:
         
 
       - name: Install dependencies
+        if: ${{ github.event_name == 'push' }}
         run: npm ci
         working-directory: src
 
       - name: Syntax check JS files
+        if: ${{ github.event_name == 'push' }}
         run: |
           node --check src/server.js
           node --check src/public/axi.js
 
       - name: Start server and smoke-test
+        if: ${{ github.event_name == 'push' }}
         run: |
           nohup npm start &
           sleep 3
