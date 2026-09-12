@@ -158,7 +158,6 @@ jobs:
       # Register the rendered task definition and update the ECS service.
       # ------------------------------------------------------------------
       - name: Deploy to Amazon ECS
-        if: steps.src-cache.outputs.cache-hit != 'true'
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
