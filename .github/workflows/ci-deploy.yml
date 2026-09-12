@@ -133,7 +133,7 @@ jobs:
           build-args: |
             EXPORTER_IP=${{ secrets.OTEL_EXPORTER_IP }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max 
 
       # ------------------------------------------------------------------
       # Render the new image URIs into the task-definition template.
