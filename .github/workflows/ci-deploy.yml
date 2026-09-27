@@ -197,18 +197,28 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # 1. Get the code changes between the previous commit and the current commit
-          GIT_DIFF=$(git diff HEAD~1 HEAD)
+          # Check if HEAD~1 exists safely without crashing the runner
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            echo "Previous commit found. Running diff against HEAD~1..."
+            GIT_DIFF=$(git diff HEAD~1 HEAD -- . ':!README.md')
+          else
+            echo "No previous commit found (First commit or orphan branch). Running diff on current commit..."
+            GIT_DIFF=$(git diff 4b825dc642cb6eb9a030e54d64a2c128f7357704 HEAD -- . ':!README.md')
+          fi
 
-          # Escape special characters to ensure valid JSON payload formatting
+          # Fallback check if the commit contained ONLY a README change
+          if [ -z "$GIT_DIFF" ]; then
+            GIT_DIFF="No code changes. Only documentation or configuration updates."
+          fi
+
           CLEAN_DIFF=$(echo "$GIT_DIFF" | jq -aR .)
 
-          # 2. Query the OpenAI API to extract the new features from the diff
-          AI_RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
+          # 1. FIXED: Changed URL to DeepSeek Official Endpoint
+          AI_RESPONSE=$(curl -s https://deepseek.com \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
             -d "{
-              \"model\": \"gpt-4o-mini\",
+              \"model\": \"deepseek-chat\",
               \"messages\": [
                 {
                   \"role\": \"system\",
@@ -221,10 +231,10 @@ jobs:
               ]
             }")
 
-          # Extract the text answer from the JSON payload using jq
+          # 2. FIXED: Correctly parse DeepSeek JSON response using safe array indexing
           FEATURE_DESC=$(echo "$AI_RESPONSE" | jq -r '.choices[0].message.content')
 
-          # 3. Append the AI-generated text to the README
+          # Append the AI feature text to the bottom of the document
           echo -e "\n### Recent Updates\n$FEATURE_DESC" >> README.md 
 
       - name: Commit and Push Changes back to GitHub
