@@ -3,6 +3,7 @@ html
     title Pokemon
     meta(name="viewport", content="width=device-width, initial-scale=1.0")
     link(rel="stylesheet", type="text/css", href="https://d3fwm73dej81m3.cloudfront.net/styles.css")
+    link(rel="stylesheet", href="/styles.css")
     link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css")
     link(rel="preconnect", href="https://fonts.googleapis.com")
     link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin)
@@ -41,7 +42,16 @@ html
 
     .cardCover
 
+    .floating-chat
+      .chat-panel
+        form.chat-form
+          textarea.floating-input(type="text", placeholder="Type a message...", aria-label="Type a message")
+          button.chat-send(type="submit") Send
+      button.floating-toggle(type="button", aria-label="Toggle chat box", aria-expanded="false")
+        img(src="/pokeball.png", alt="Pokeball")
+
   script(src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js")
+  script(src="/axi.js")
   script(src="https://kit.fontawesome.com/8b8b86760e.js", crossorigin="anonymous")
   script(type="text/javascript", src="https://d3fwm73dej81m3.cloudfront.net/axi.js")
 

@@ -2,6 +2,7 @@ const fs = require('fs')
 const express = require('express'),
       app = express(),
       bodyParser = require('body-parser'),
+      ejecutarAnalisisEstrategico = require('./chatbot'),
       { httpRequestsTotal, httpRequestDuration, activeRequests } = require('./telemetry');
 
 const PORT = process.env.PORT || 10000;
@@ -39,6 +40,24 @@ app.use((req, res, next) => {
 app.get("/", (req, res)=>{
 res.render("index")
 })
+
+app.post("/analisis", async (req, res)=>{
+  const { value } = req.body;
+  if (!value) {
+    res.status(400).send('Bad Request: Missing value');
+    return;
+  }
+  try {
+    // Si la función interactúa con una IA, asegúrate de esperarla con await
+    const resultado = await ejecutarAnalisisEstrategico(value); 
+    
+    // Enviamos el contenido al frontend como un objeto JSON
+    res.json({ respuesta: resultado });
+  } catch (error) {
+    console.error("Error en el análisis:", error);
+    res.status(500).send('Error interno del servidor');
+  }
+});
 
 
 app.listen(PORT, (err)=>{

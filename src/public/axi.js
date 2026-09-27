@@ -163,3 +163,52 @@ nextBtn.addEventListener('click', () => {
 });
 
 loadPokemonPage(0);
+
+const floatingChat = document.querySelector('.floating-chat');
+const floatingToggle = document.querySelector('.floating-toggle');
+const chatForm = document.querySelector('.chat-form');
+const floatingInput = document.querySelector('.floating-input');
+
+if (floatingChat && floatingToggle && chatForm && floatingInput) {
+  floatingToggle.addEventListener('click', () => {
+    const isOpen = floatingChat.classList.toggle('open');
+    console.log("clicked")
+    floatingToggle.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      floatingInput.focus();
+    }
+  });
+
+  chatForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const value = floatingInput.value.trim();
+  
+  if (!value) {
+    floatingInput.focus();
+    return;
+  }
+  
+  // Clear the entry terminal area
+  floatingInput.value = '';
+
+  try {
+    const response = await axios.post('/analisis', { value });
+    floatingInput.value = "Processing your request...";
+    // Captures the encapsulated JSON fields cleanly
+    const jsonOutput = response.data.respuesta; 
+    
+    console.log("Success flag status:", jsonOutput.success);
+    console.log("Original question context:", jsonOutput.query);
+
+    // Isolate the exact plain language competitive markdown
+    const cleanAnalysisText = jsonOutput.analysis;
+    floatingInput.value = '';
+    // Display it exactly where it needs to be outputted
+    floatingInput.value = `\n--- PREVIOUS STRATEGY RESULT ---\n${cleanAnalysisText}\n\n`;
+    floatingInput.value += ("Ask a question: \n")
+  } catch (error) {
+    console.error("Frontend payload error collection:", error);
+    floatingInput.value = "Error compiling live server stats.";
+  }
+});
+}

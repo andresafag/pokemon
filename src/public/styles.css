@@ -318,87 +318,110 @@ input {
   visibility: visible;
 }
 
-.cardContainer {
-  position: relative;
-  width: min(100%, 520px);
-  border-radius: 28px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(30, 41, 59, 0.97));
-  box-shadow: var(--shadow);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 20px;
+.floating-chat {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  z-index: 9999;
 }
 
-.closeBox {
+.chat-panel {
   position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 42px;
-  height: 42px;
+  right: 88px;
+  bottom: 0;
+  width: min(330px, calc(100vw - 120px));
+  padding: 16px 16px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
+.floating-chat.open .chat-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.chat-form {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f97316, #ef4444);
-  color: white;
+  gap: 10px;
+}
+
+.floating-input {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 60px; 
+  overflow-wrap: break-word;
+  word-break: break-word;  
+  max-width: 300px; 
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-main);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  field-sizing: content;
+  resize: none;
+
+  /* 1. Define una altura máxima fija (por ejemplo, 150px o 200px según prefieras) */
+  max-height: 150px;
+
+  /* 2. Permite que aparezca la barra de desplazamiento solo cuando pase esa altura */
+  overflow-y: auto;
+
+  /* 3. Opcional: Oculta la barra de scroll horizontal por si acaso */
+  overflow-x: hidden;
+}
+
+.floating-input::placeholder {
+  color: rgba(226, 232, 240, 0.6);
+}
+
+.chat-send {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), #f97316);
+  color: #111827;
+  font-weight: 700;
+  padding: 10px 12px;
   cursor: pointer;
-  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.35);
 }
 
-.modal-body {
+.floating-toggle {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.modal-sprite {
-  display: flex;
-  justify-content: center;
   align-items: center;
-  min-height: 180px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(56, 189, 248, 0.12));
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.8);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.modal-sprite img {
-  width: 150px;
-  height: 150px;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 24px rgba(15, 23, 42, 0.45));
+.floating-toggle:hover {
+  transform: translateY(-2px);
 }
 
-.modal-info h2 {
-  margin-bottom: 10px;
-  text-align: center;
-  font-size: clamp(1.6rem, 3vw, 2.3rem);
-  text-transform: capitalize;
-}
-
-.modal-info p,
-.modal-info li {
-  color: var(--text-soft);
-  font-size: 0.98rem;
-  line-height: 1.8;
-}
-
-.modal-info strong {
-  color: var(--text-main);
-}
-
-.ability-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  list-style: none;
-}
-
-.ability-list li {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0.12);
-  color: var(--text-main);
-  font-size: 0.82rem;
-  text-transform: capitalize;
+.floating-toggle img {
+  width: 54px;
+  height: 54px;
+  display: block;
+  filter: drop-shadow(0 8px 12px rgba(251, 191, 36, 0.4));
 }
 
 @media (max-width: 860px) {
@@ -419,28 +442,9 @@ input {
   .pokemon-grid {
     grid-template-columns: repeat(2, minmax(170px, 1fr));
   }
-}
 
-@media (max-width: 560px) {
-  .page-shell {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .topbar {
-    padding: 16px 18px;
-  }
-
-  .pokemon-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .pokemon-toolbar {
-    justify-content: center;
-  }
-
-  .results-label {
-    flex: 1;
-    justify-content: center;
+  .floating-chat {
+    right: 16px;
+    bottom: 16px;
   }
 }
