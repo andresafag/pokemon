@@ -240,3 +240,4 @@ jobs:
         with:
           commit_message: "docs: update README with AI feature summary [skip ci]"
           file_pattern: 'README.md'
+          push_options: '--force-with-lease'
