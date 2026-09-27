@@ -213,10 +213,9 @@ jobs:
 
           CLEAN_DIFF=$(echo "$GIT_DIFF" | jq -aR .)
 
-          # 1. FIXED: Changed URL to DeepSeek Official Endpoint
-          AI_RESPONSE=$(curl -s https://deepseek.com \
+          AI_RESPONSE=$(curl -s https://api.deepseek.com \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
             -d "{
               \"model\": \"deepseek-chat\",
               \"messages\": [
@@ -231,7 +230,6 @@ jobs:
               ]
             }")
 
-          # 2. FIXED: Correctly parse DeepSeek JSON response using safe array indexing
           FEATURE_DESC=$(echo "$AI_RESPONSE" | jq -r '.choices[0].message.content')
 
           # Append the AI feature text to the bottom of the document
