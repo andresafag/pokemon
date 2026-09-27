@@ -52,6 +52,8 @@ jobs:
 
       - name: Start server and smoke-test
         if: ${{ github.event_name == 'push' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           nohup npm start &
           sleep 3
@@ -213,11 +215,11 @@ jobs:
 
           CLEAN_DIFF=$(echo "$GIT_DIFF" | jq -aR .)
 
-          AI_RESPONSE=$(curl -s https://api.deepseek.com \
+          AI_RESPONSE=$(curl -s https://api.deepseek.com/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             -d "{
-              \"model\": \"deepseek-chat\",
+              \"model\": \"deepseek-flash\",
               \"messages\": [
                 {
                   \"role\": \"system\",
