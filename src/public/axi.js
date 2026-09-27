@@ -188,22 +188,18 @@ if (floatingChat && floatingToggle && chatForm && floatingInput) {
     return;
   }
   
-  // Clear the entry terminal area
   floatingInput.value = '';
 
   try {
     const response = await axios.post('/analisis', { value });
     floatingInput.value = "Processing your request...";
-    // Captures the encapsulated JSON fields cleanly
     const jsonOutput = response.data.respuesta; 
     
     console.log("Success flag status:", jsonOutput.success);
     console.log("Original question context:", jsonOutput.query);
 
-    // Isolate the exact plain language competitive markdown
     const cleanAnalysisText = jsonOutput.analysis;
     floatingInput.value = '';
-    // Display it exactly where it needs to be outputted
     floatingInput.value = `\n--- PREVIOUS STRATEGY RESULT ---\n${cleanAnalysisText}\n\n`;
     floatingInput.value += ("Ask a question: \n")
   } catch (error) {
