@@ -21,6 +21,7 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
 
 - [Pokesearch](#pokesearch)
   - [Table of Contents](#table-of-contents)
+  - [✨ Key Features](#-key-features)
   - [Tech Stack](#tech-stack)
   - [Architecture](#architecture)
   - [Terraform Infrastructure](#terraform-infrastructure)
@@ -38,6 +39,16 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [Usage](#usage)
   - [License](#license)
   - [Footer](#footer)
+
+---
+
+## ✨ Key Features
+
+- **🔍 PokéAPI Data Retrieval** — Fetches and displays live Pokémon statistics and species information directly from the public PokéAPI.
+- **🤖 OpenAI Strategic Analysis** — Leverages an integrated OpenAI chatbot module to execute strategic analysis on queried Pokémon.
+- **📊 Custom Request Telemetry** — Instruments incoming web traffic with metrics tracking total requests, active requests, and route durations.
+- **🖼️ Pug View Rendering** — Renders dynamic HTML views using Pug templates with enabled server-side view caching.
+- **🐳 Docker and ECS Deployment** — Includes Docker container configurations and Terraform files for automated deployment to AWS ECS Fargate.
 
 ---
 
