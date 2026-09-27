@@ -199,23 +199,25 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # Check if HEAD~1 exists safely without crashing the runner
+          # 1. Comprobar de forma segura si existe el commit padre (HEAD~1)
           if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
             echo "Previous commit found. Running diff against HEAD~1..."
             GIT_DIFF=$(git diff HEAD~1 HEAD -- . ':!README.md')
           else
-            echo "No previous commit found (First commit or orphan branch). Running diff on current commit..."
-            GIT_DIFF=$(git diff 4b825dc642cb6eb9a030e54d64a2c128f7357704 HEAD -- . ':!README.md')
+            echo "No previous commit found. Running diff on current commit using git show..."
+            # Evita usar hashes fijos de Git que rompen clones superficiales
+            GIT_DIFF=$(git show HEAD -- . ':!README.md')
           fi
 
-          # Fallback check if the commit contained ONLY a README change
+          # Fallback por si el commit solo contenía cambios del README.md
           if [ -z "$GIT_DIFF" ]; then
             GIT_DIFF="No code changes. Only documentation or configuration updates."
           fi
 
           CLEAN_DIFF=$(echo "$GIT_DIFF" | jq -aR .)
 
-          AI_RESPONSE=$(curl -s https://api.deepseek.com/chat/completions \
+          # 2. Llamada a la API de DeepSeek guardando la respuesta en un archivo intermedio
+          curl -s https://api.deepseek.com/chat/completions \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $OPENAI_API_KEY" \
             -d "{
@@ -230,12 +232,24 @@ jobs:
                   \"content\": $CLEAN_DIFF
                 }
               ]
-            }")
+            }" > deepseek_response.json
 
-          FEATURE_DESC=$(echo "$AI_RESPONSE" | jq -r '.choices[0].message.content')
+          # 3. Mostrar la respuesta en los logs de GitHub Actions por si necesitas depurar
+          echo "=== RESPUESTA COMPLETA DE DEEPSEEK ==="
+          cat deepseek_response.json
+          echo "======================================"
 
-          # Append the AI feature text to the bottom of the document
-          echo -e "\n### Recent Updates\n$FEATURE_DESC" >> README.md 
+          # 4. Extraer el texto del JSON capturando correctamente la primera opción con jq
+          FEATURE_DESC=$(jq -r '.choices[0].message.content' deepseek_response.json)
+
+          # 5. Escribir en el README.md solo si la respuesta de la IA no es nula o vacía
+          if [ -n "$FEATURE_DESC" ] && [ "$FEATURE_DESC" != "null" ]; then
+            echo -e "\n### Recent Updates\n$FEATURE_DESC" >> README.md
+            echo "README updated successfully with AI summary."
+          else
+            echo "Error: DeepSeek API returned an empty or invalid response."
+            exit 1
+          fi 
 
       - name: Commit and Push Changes back to GitHub
         uses: stefanzweifel/git-auto-commit-action@v5
