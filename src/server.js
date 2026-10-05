@@ -43,18 +43,44 @@ res.render("index")
 
 app.post("/analisis", async (req, res)=>{
   const { value } = req.body;
+
   if (!value) {
-    res.status(400).send('Bad Request: Missing value');
+    res.status(400).json({ error: 'Bad Request: Missing value' });
     return;
   }
+
+  const wantsStream = req.headers.accept && req.headers.accept.includes('text/event-stream');
+
+  if (wantsStream) {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders && res.flushHeaders();
+
+    let fullText = '';
+
+    try {
+      await ejecutarAnalisisEstrategico.stream(value, (chunk) => {
+        fullText += chunk;
+        res.write(`event: chunk\ndata: ${JSON.stringify({ chunk, fullText })}\n\n`);
+      });
+
+      res.write(`event: done\ndata: ${JSON.stringify({ done: true, text: fullText })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error('Error en el análisis stream:', error);
+      res.write(`event: error\ndata: ${JSON.stringify({ error: 'Error interno del servidor' })}\n\n`);
+      res.end();
+    }
+
+    return;
+  }
+
   try {
-    // Si la función interactúa con una IA, asegúrate de esperarla con await
-    const resultado = await ejecutarAnalisisEstrategico(value); 
-    
-    // Enviamos el contenido al frontend como un objeto JSON
+    const resultado = await ejecutarAnalisisEstrategico(value);
     res.json({ respuesta: resultado });
   } catch (error) {
-    console.error("Error en el análisis:", error);
+    console.error('Error en el análisis:', error);
     res.status(500).send('Error interno del servidor');
   }
 });

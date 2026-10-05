@@ -172,7 +172,7 @@ const floatingInput = document.querySelector('.floating-input');
 if (floatingChat && floatingToggle && chatForm && floatingInput) {
   floatingToggle.addEventListener('click', () => {
     const isOpen = floatingChat.classList.toggle('open');
-    console.log("clicked")
+    console.log('clicked');
     floatingToggle.setAttribute('aria-expanded', String(isOpen));
     if (isOpen) {
       floatingInput.focus();
@@ -180,31 +180,116 @@ if (floatingChat && floatingToggle && chatForm && floatingInput) {
   });
 
   chatForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const value = floatingInput.value.trim();
-  
-  if (!value) {
-    floatingInput.focus();
-    return;
-  }
-  
-  floatingInput.value = '';
+    event.preventDefault();
+    const value = floatingInput.value.trim();
 
-  try {
-    const response = await axios.post('/analisis', { value });
-    floatingInput.value = "Processing your request...";
-    const jsonOutput = response.data.respuesta; 
-    
-    console.log("Success flag status:", jsonOutput.success);
-    console.log("Original question context:", jsonOutput.query);
+    if (!value) {
+      floatingInput.focus();
+      return;
+    }
 
-    const cleanAnalysisText = jsonOutput.analysis;
     floatingInput.value = '';
-    floatingInput.value = `\n--- PREVIOUS STRATEGY RESULT ---\n${cleanAnalysisText}\n\n`;
-    floatingInput.value += ("Ask a question: \n")
-  } catch (error) {
-    console.error("Frontend payload error collection:", error);
-    floatingInput.value = "Error compiling live server stats.";
-  }
-});
+    floatingInput.style.fontWeight = 'bold';
+    floatingInput.placeholder = 'Thinking...';
+
+    let currentText = '';
+    let thinkingInterval = setInterval(() => {
+      const dots = (Date.now() / 1000).toFixed(0) % 4;
+      floatingInput.value = `Thinking${'.'.repeat(dots || 1)}`;
+    }, 250);
+
+    try {
+      const response = await fetch('/analisis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({ value }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Streaming response unavailable');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+
+        for (const part of parts) {
+          const trimmed = part.trim();
+          if (!trimmed) {
+            continue;
+          }
+
+          const lines = part.split('\n');
+          const eventLine = lines.find((line) => line.startsWith('event:'));
+          const dataLine = lines.find((line) => line.startsWith('data:'));
+
+          if (!dataLine) {
+            continue;
+          }
+
+          const eventName = eventLine ? eventLine.replace('event:', '').trim() : 'message';
+          let payload;
+
+          try {
+            payload = JSON.parse(dataLine.replace(/^data:\s*/, ''));
+          } catch (error) {
+            console.error('Failed to parse SSE payload', error);
+            continue;
+          }
+
+          if (eventName === 'chunk') {
+            clearInterval(thinkingInterval);
+            currentText = payload.fullText || currentText + (payload.chunk || '');
+            floatingInput.value = currentText;
+            floatingInput.style.fontWeight = 'normal';
+            continue;
+          }
+
+          if (eventName === 'done') {
+            clearInterval(thinkingInterval);
+            currentText = payload.text || currentText;
+            floatingInput.value = currentText;
+            floatingInput.style.fontWeight = 'normal';
+            floatingInput.placeholder = 'Type a message...';
+            continue;
+          }
+
+          if (eventName === 'error') {
+            clearInterval(thinkingInterval);
+            floatingInput.value = payload.error || 'Error compiling live server stats.';
+            floatingInput.style.fontWeight = 'normal';
+            floatingInput.placeholder = 'Type a message...';
+          }
+        }
+      }
+
+      clearInterval(thinkingInterval);
+      floatingInput.style.fontWeight = 'normal';
+      floatingInput.placeholder = 'Type a message...';
+
+      if (!currentText.trim()) {
+        floatingInput.value = 'Error compiling live server stats.';
+      }
+    } catch (error) {
+      clearInterval(thinkingInterval);
+      console.error('Frontend payload error collection:', error);
+      floatingInput.value = 'Error compiling live server stats.';
+      floatingInput.style.fontWeight = 'normal';
+      floatingInput.placeholder = 'Type a message...';
+    }
+  });
 }

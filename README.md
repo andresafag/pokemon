@@ -24,6 +24,10 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [✨ Key Features](#-key-features)
   - [Tech Stack](#tech-stack)
   - [Architecture](#architecture)
+  - [AI Agent \& LLMOps Workflow](#ai-agent--llmops-workflow)
+    - [Model routing and prompt optimization](#model-routing-and-prompt-optimization)
+    - [Agent workflow](#agent-workflow)
+    - [Token cost telemetry](#token-cost-telemetry)
   - [Terraform Infrastructure](#terraform-infrastructure)
   - [Static Asset Offloading \& CDN Edge Acceleration](#static-asset-offloading--cdn-edge-acceleration)
     - [FinOps 💸](#finops-)
@@ -37,6 +41,7 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
   - [Why Fargate over ECS Express Mode](#why-fargate-over-ecs-express-mode)
   - [Project Structure](#project-structure)
   - [Usage](#usage)
+  - [LLMOps Challenges \& Learnings](#llmops-challenges--learnings)
   - [License](#license)
   - [Footer](#footer)
 
@@ -46,6 +51,9 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
 
 - **🔍 PokéAPI Data Retrieval** — Fetches and displays live Pokémon statistics and species information directly from the public PokéAPI.
 - **🤖 OpenAI Strategic Analysis** — Leverages an integrated OpenAI chatbot module to execute strategic analysis on queried Pokémon.
+- **🧠 LLM Routing & Cost Control** — Classifies prompt complexity and routes requests to the cheapest capable model before sending tool calls or final synthesis.
+- **📉 Token Optimization** — Estimates prompt size and tracks token usage/cost to reduce unnecessary spend without harming response quality.
+- **🛠️ Tool-Calling Agent Workflow** — Uses the OpenAI Responses API with native function calling to fetch factual Pokémon data (stats, moves, abilities, habitat, evolution chains, type charts).
 - **📊 Custom Request Telemetry** — Instruments incoming web traffic with metrics tracking total requests, active requests, and route durations.
 - **🖼️ Pug View Rendering** — Renders dynamic HTML views using Pug templates with enabled server-side view caching.
 - **🐳 Docker and ECS Deployment** — Includes Docker container configurations and Terraform files for automated deployment to AWS ECS Fargate.
@@ -60,6 +68,8 @@ Pokesearch is a Node.js web app that lets users look up basic information about 
 | Web framework | Express |
 | Templating | Pug |
 | HTTP client | Axios |
+| AI / LLM layer | OpenAI Responses API + function calling |
+| Model routing | Prompt complexity classifier + cost-aware model selection |
 | Static Asset Storage | Amazon S3 |
 | Content Delivery Network | Amazon CloudFront (OAC Secured) |
 | Container registry | Amazon ECR |
@@ -122,6 +132,104 @@ The project uses a **hybrid IaC + CI/CD approach**: Terraform owns the infrastru
 │  └──────────────────────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## AI Agent & LLMOps Workflow
+
+This application includes a lightweight **agentic AI workflow** designed for factual Pokémon analysis, cost discipline, and reliable tool execution.
+
+### Model routing and prompt optimization
+
+The backend uses a prompt classifier in `src/chatbot.js` to estimate token count and complexity before calling OpenAI.
+
+- Low or moderate questions default to `gpt-4o-mini` to minimize cost.
+- High-complexity prompts such as strategic comparisons or multi-constraint reasoning route to `gpt-4o`.
+- Estimated tokens are calculated using a lightweight approximation and surfaced in logs.
+- Each request records model choice, routing reason, usage, and projected cost.
+
+### Agent workflow
+
+```text
+User prompt
+    │
+    ▼
+Prompt analyzer
+    │
+    ├── estimate tokens
+    ├── detect complexity signal
+    ├── score strategic/comparative weight
+    └── route to gpt-4o-mini or gpt-4o
+    │
+    ▼
+OpenAI Responses API
+    │
+    ├── system instructions
+    ├── tool definitions
+    └── model call with tool_choice=auto
+    │
+    ▼
+Function-calling agent
+    ├── pokemonDetails
+    ├── getTypeInfo
+    ├── getAbilityDetails
+    ├── getMoveDetails
+    ├── getEvolutionChain
+    ├── listPokemonByType
+    ├── getLocationAreas
+    └── getPokemonHabitat
+    │
+    ▼
+Tool result ingestion
+    │
+    ▼
+Final synthesis
+    │
+    ▼
+Structured response returned to frontend
+```
+
+### Token cost telemetry
+
+Each AI interaction logs the following operational data:
+
+- prompt complexity
+- estimated token count
+- selected model
+- cost estimate for input and output tokens
+- actual usage from the OpenAI API response
+
+Example log output from the live workflow:
+
+```text
+==========================================
+AI MODEL ROUTING
+==========================================
+User prompt: what kind of pokemon is pikachu?
+Estimated tokens: 8
+Complexity: low
+Complexity score: 0
+Selected model: gpt-4o-mini
+Reason: Simple or moderate factual query suitable for the basic model
+==========================================
+
+Executing tool: pokemonDetails
+
+==========================================
+TOKEN / COST INFORMATION
+==========================================
+Model: gpt-4o-mini
+Input tokens: 589
+Output tokens: 104
+Total tokens: 693
+Estimated input cost: $ 0.00008835
+Estimated output cost: $ 0.0000624
+Estimated total cost: $ 0.00015075
+==========================================
+```
+
+This approach demonstrates practical **LLMOps discipline**: low cost, measurable output, and explicit operational observability rather than undocumented AI magic.
+
 ---
 
 ## Terraform Infrastructure
@@ -231,11 +339,11 @@ Push to master
       │
       ▼
 ┌─────────────┐
-│   Job: Test │
+│   Job: Test │
 │─────────────│
-│ npm ci      │
+│ npm ci     │
 │ node --check│
-│ smoke test  │
+│ smoke test │
 └──────┬──────┘
        │ pass
        ▼
@@ -338,6 +446,21 @@ Once the application is running, you can access it via your web browser.
 
 ---
 
+## LLMOps Challenges & Learnings
+
+This AI layer was not just a feature add — it was a real operational engineering problem. The project forced me to work through several production-oriented challenges that are directly relevant to real LLM engineering work:
+
+- **Model mismatch and access issues** — I initially hit invalid model names and access errors (`deepseek-chat` not available through the configured OpenAI project), which taught me the importance of validating the exact model catalog exposure before building an agent loop.
+- **API contract mismatches** — The OpenAI tool-calling flow changed between legacy chat-completions and the Responses API. The biggest technical issue was ensuring the tool call schema and follow-up `function_call_output` payload matched the API contract exactly.
+- **Tool orchestration reliability** — The agent had to safely call multiple functions, manage argument parsing, and ensure the output was returned in a clean, structured format instead of raw API payloads.
+- **Model routing trade-offs** — A naive implementation would route every request to a premium model, which increases cost and reduces efficiency. The router solves this by balancing task complexity with budget-conscious routing.
+- **Token and cost observability** — Without explicit token telemetry, AI projects can become opaque and unexpectedly expensive. The cost logging in this project makes the AI layer auditable and operationally manageable.
+- **Structured final response design** — The application needed a final answer that could be safely consumed by the frontend without exposing noisy model internals or invalid JSON structures.
+
+These challenges map directly to the kind of work done in LLMOps roles: production reliability, model governance, latency/cost tuning, and operational observability.
+
+---
+
 ## License 
 
 This project is not currently under a specified license. Please refer to the repository for details.
@@ -346,5 +469,5 @@ This project is not currently under a specified license. Please refer to the rep
 
 ## Footer
 
-© 2023 [andresafag/pokemon](https://github.com/andresafag/pokemon) | Developed by [andresafag](https://github.com/andresafag)
+© 2023 [andresafag/pokemon](https://github.com/andresafag/pokemon) | Developed by [andresafag](https://github.com/andresafag/pokemon)
 
