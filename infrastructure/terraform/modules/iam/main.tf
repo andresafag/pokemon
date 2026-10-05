@@ -37,6 +37,7 @@ resource "aws_iam_policy" "execution_secrets_read" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
+          "arn:aws:secretsmanager:us-east-1:688567305851:secret:openai-api-key*",
           "arn:aws:secretsmanager:us-east-1:688567305851:secret:openai-api-keys*"
         ]
       }
