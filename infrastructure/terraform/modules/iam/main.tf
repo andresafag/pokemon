@@ -24,6 +24,31 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_policy" "execution_secrets_read" {
+  name = "${var.name}-ecs-execution-secrets-read"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowReadOpenAISecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:us-east-1:688567305851:secret:openai-api-keys*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "execution_secrets_read" {
+  role       = aws_iam_role.execution.name
+  policy_arn = aws_iam_policy.execution_secrets_read.arn
+}
+
 # ---------------------------------------------------------------------------
 # Task Role — granted to the running container for app-level AWS API calls
 # ---------------------------------------------------------------------------
