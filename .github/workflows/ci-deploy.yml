@@ -91,6 +91,16 @@ jobs:
         with:
           role-to-assume: ${{ secrets.GH_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Get AWS Account ID
+        id: aws-account
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+      - name: Inject AWS Account ID into Task Definition
+        run: |
+          sed -i 's/AWS_ACCOUNT_ID/${{ env.ACCOUNT_ID }}/g' ${{ env.TASK_DEFINITION_PATH }}
 
       # ------------------------------------------------------------------
       # Log in to ECR 

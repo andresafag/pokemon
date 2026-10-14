@@ -1,5 +1,6 @@
 const OpenAI = require("openai"),
       axios = require("axios"),
+      { encodingForModel } = require("js-tiktoken"),
       getTypeInfo = require("./chat-functions").getTypeInfo,
       pokemonDetails = require("./chat-functions").pokemonDetails,
       getStats = require("./chat-functions").getStats,
@@ -125,36 +126,27 @@ function getResponseText(response) {
 
 /*
 ===========================================================
-TOKEN ESTIMATION
+PRECISE TOKEN COUNTING (TIKTOKEN)
 ===========================================================
-
-This is only an approximation.
-
-For English text, roughly:
-
-1 token ≈ 4 characters
-
-Actual tokenization depends on the tokenizer.
-The API usage values are more accurate and are used
-when available.
 */
 
-function estimateTokens(text) {
+function estimateTokens(text, model = MODELS.BASIC) {
 
   if (!text) {
     return 0;
   }
 
-  return Math.ceil(text.length / 4);
+  try {
+    const encoder = encodingForModel(model);
+    const tokens = encoder.encode(text);
+    return tokens.length;
+  } catch (err) {
+    // Fallback encoding if model name isn't directly matched
+    const fallbackEncoder = encodingForModel("cl100k_base");
+    return fallbackEncoder.encode(text).length;
+  }
 
 }
-
-
-/*
-===========================================================
-PROMPT COMPLEXITY ANALYSIS
-===========================================================
-*/
 
 function analyzePrompt(prompt) {
 
@@ -324,7 +316,7 @@ function selectModel(userInput) {
     reason:
       "Simple or moderate factual query suitable for the basic model",
 
-    analysis
+      analysis
 
   };
 
