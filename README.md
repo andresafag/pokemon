@@ -12,7 +12,7 @@
 Pokesearch is a Node.js web app that lets users look up basic information about any Pokémon. It fetches live data from the [PokéAPI](https://pokeapi.co) and is deployed on AWS ECS Fargate via a fully automated CI/CD pipeline.
 
 < --- IP start --- >
-**Experience the application live from 9AM to 5PM Central Eastern Time: → [Demo](http://3.90.103.155:10000)**
+**Experience the application live from 9AM to 5PM Central Eastern Time: → [Demo](http://32.192.49.195:10000)**
 < --- IP end --- >
 
 ---
@@ -439,7 +439,7 @@ pokemon/
 
 Once the application is running, you can access it via your web browser.
 
-1.  **Open your browser** and navigate to [Demo](http://3.90.103.155:10000) from 9AM to 5PM Central Eastern Time
+1.  **Open your browser** and navigate to [Demo](http://32.192.49.195:10000) from 9AM to 5PM Central Eastern Time
 2.  **Search for a Pokémon:** Enter a Pokémon's name in the search bar and press Enter.
 3.  **View Details:** A modal will display detailed information about the Pokémon.
 4.  **Navigate Pages:** Use the pagination buttons to browse through different pages of Pokémon.
